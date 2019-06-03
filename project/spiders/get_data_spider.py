@@ -19,7 +19,7 @@ class StartupParser(scrapy.Spider):
         with open('startups.csv', 'r') as urls_file:
             urls_list = csv.reader(urls_file, delimiter=',')
             data = sum([i for i in urls_list], [])
-            selected_urls = random.sample(data, 20000)
+            selected_urls = random.sample(data, 250)
             for url in selected_urls:
                 url = url + '?json'
                 print(url)
@@ -28,9 +28,10 @@ class StartupParser(scrapy.Spider):
     def parse(self, response):
         selector = scrapy.Selector(response, type="html")
 
-        description_short = selector.xpath('//div[@class="row"]/div[@class="col-md-10"]/div[@class="row"]/div['
-                                           '@class="col-md-12"]/div/text()').extract_first()
-        description = '\n'.join(selector.xpath('//p[@class="profile-desc-text"]/text()').extract())
+        description_short = '\n'.join(selector.xpath('//div[@class="row"]/div[@class="col-md-10"]/div['
+                                                     '@class="row"]/div[@class="col-md-12"]/div/text()').extract())
+
+        description = ' '.join('\n'.join(selector.xpath('//p[@class="profile-desc-text"]/text()').extract()).split())
 
         yield {'company_name': selector.xpath("//h1[@class='profile-startup']/text()").extract_first(),
                'request_url': response.request.url[:-5],
@@ -40,12 +41,16 @@ class StartupParser(scrapy.Spider):
                                                 '@class="col-md-12"]/div[3]/span/a/text()').extract()),
                'founding_date': selector.xpath('//div[@class="row"]/div[@class="col-md-10"]/div[@class="row"]/div['
                                                '@class="col-md-12"]/p/span/text()').extract_first(),
+               'founders': ', '.join(
+                   selector.xpath("//div[@class='desc']/span[@class='item-label bold']/a/text()").extract()),
+
+               'employee_range': ' ',  # ToDo: employee_range
                'urls': ', '.join(selector.xpath("//div[contains(@class,'col-md-5 socials pdt text-right')]/a/@href")
                                  .extract()),
+               'emails': re.findall(r'[\w\.-]+@[\w\.-]+', description + description_short),
+               'phones': ', '.join(re.findall(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]', description + description_short)),
                'description_short': description_short,
                'description': description,
-               'phones': ', '.join(re.findall(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]', description + description_short)),
-               'founders': ', '.join(selector.xpath("//div[@class='desc']/span[@class='item-label bold']/a/text()").extract())
                }
 
         # founders_sel = selector.xpath('//div[@class="portlet box-view followers team _yeti_done"]').getall()
